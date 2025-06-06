@@ -1,4 +1,6 @@
+import base64
 from davia import Davia
+import io
 import matplotlib.pyplot as plt
 import numpy as np
 from pydantic import BaseModel
@@ -85,7 +87,7 @@ def run_kmeans(generated_clusters: GeneratedData, k: int, max_iter: int) -> KMea
 
 
 @app.task
-def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel) -> plt.Figure:
+def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel) -> str:
     """
     Function to visualize the true clusters and the results of the k-means clustering.
     Parameters
@@ -95,7 +97,7 @@ def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel)
 
     Returns
     -------
-    plt.Figure - figure showing the true clusters and the results of the k-means clustering
+    str - Base64 encoded image string for display in frontend
     """
     data = np.array(generated_clusters.data)
     true_centers = np.array(generated_clusters.true_centers)
@@ -112,51 +114,98 @@ def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel)
     for kmeans_label in np.unique(kmeans_labels):
         mask = kmeans_labels == kmeans_label
         true_labels_for_this_cluster = true_labels[mask]
-        most_common_true_label = np.bincount(true_labels_for_this_cluster.astype(int)).argmax()
+        most_common_true_label = np.bincount(
+            true_labels_for_this_cluster.astype(int)
+        ).argmax()
         label_mapping[kmeans_label] = most_common_true_label
 
     mapped_kmeans_labels = np.array([label_mapping[label] for label in kmeans_labels])
 
     ax1 = axes[0]
-    ax1.scatter(data[:, 0], data[:, 1], c=[colors[int(label)] for label in true_labels],
-                           alpha=0.7, s=50)
-    ax1.scatter(true_centers[:, 0], true_centers[:, 1],
-                c='red', marker='x', s=200, linewidths=3, label='True Centers')
-    ax1.set_title('True Clusters', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Feature 1')
-    ax1.set_ylabel('Feature 2')
+    ax1.scatter(
+        data[:, 0],
+        data[:, 1],
+        c=[colors[int(label)] for label in true_labels],
+        alpha=0.7,
+        s=50,
+    )
+    ax1.scatter(
+        true_centers[:, 0],
+        true_centers[:, 1],
+        c="red",
+        marker="x",
+        s=200,
+        linewidths=3,
+        label="True Centers",
+    )
+    ax1.set_title("True Clusters", fontsize=14, fontweight="bold")
+    ax1.set_xlabel("Feature 1")
+    ax1.set_ylabel("Feature 2")
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
     ax2 = axes[1]
-    ax2.scatter(data[:, 0], data[:, 1], c=[colors[int(label)] for label in mapped_kmeans_labels],
-                           alpha=0.7, s=50)
-    ax2.scatter(true_centers[:, 0], true_centers[:, 1],
-                c='red', marker='x', s=200, linewidths=3, label='True Centers')
-    ax2.scatter(kmeans_centers[:, 0], kmeans_centers[:, 1],
-                c='blue', marker='o', s=200, linewidths=2,
-                edgecolors='black', label='K-means Centers')
+    ax2.scatter(
+        data[:, 0],
+        data[:, 1],
+        c=[colors[int(label)] for label in mapped_kmeans_labels],
+        alpha=0.7,
+        s=50,
+    )
+    ax2.scatter(
+        true_centers[:, 0],
+        true_centers[:, 1],
+        c="red",
+        marker="x",
+        s=200,
+        linewidths=3,
+        label="True Centers",
+    )
+    ax2.scatter(
+        kmeans_centers[:, 0],
+        kmeans_centers[:, 1],
+        c="blue",
+        marker="o",
+        s=200,
+        linewidths=2,
+        edgecolors="black",
+        label="K-means Centers",
+    )
 
     for i, true_center in enumerate(true_centers):
         if i < len(kmeans_centers):
             distances = np.linalg.norm(kmeans_centers - true_center, axis=1)
             nearest_kmeans_idx = np.argmin(distances)
-            ax2.plot([true_center[0], kmeans_centers[nearest_kmeans_idx][0]],
-                     [true_center[1], kmeans_centers[nearest_kmeans_idx][1]],
-                     'k--', alpha=0.5, linewidth=1)
+            ax2.plot(
+                [true_center[0], kmeans_centers[nearest_kmeans_idx][0]],
+                [true_center[1], kmeans_centers[nearest_kmeans_idx][1]],
+                "k--",
+                alpha=0.5,
+                linewidth=1,
+            )
 
-    ax2.set_title('Comparison: True vs K-means Centers', fontsize=14, fontweight='bold')
-    ax2.set_xlabel('Feature 1')
-    ax2.set_ylabel('Feature 2')
+    ax2.set_title("Comparison: True vs K-means Centers", fontsize=14, fontweight="bold")
+    ax2.set_xlabel("Feature 1")
+    ax2.set_ylabel("Feature 2")
     ax2.legend()
     ax2.grid(True, alpha=0.3)
 
-    fig.suptitle(f'K-means Clustering Analysis\nInertia: {kmeans_results.inertia:.2f}',
-                 fontsize=16, fontweight='bold')
+    fig.suptitle(
+        f"K-means Clustering Analysis\nInertia: {kmeans_results.inertia:.2f}",
+        fontsize=16,
+        fontweight="bold",
+    )
 
     plt.tight_layout()
 
-    return fig
+    # Convert figure to base64 string
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    plt.close(fig)  # Important: close the figure to free memory
+
+    return f"data:image/png;base64,{image_base64}"
 
 
 if __name__ == "__main__":
