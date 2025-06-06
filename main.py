@@ -85,7 +85,7 @@ def run_kmeans(generated_clusters: GeneratedData, k: int, max_iter: int) -> KMea
 
 
 @app.task
-def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel) -> None:
+def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel) -> plt.Figure:
     """
     Function to visualize the true clusters and the results of the k-means clustering.
     Parameters
@@ -95,7 +95,7 @@ def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel)
 
     Returns
     -------
-    None
+    plt.Figure - figure showing the true clusters and the results of the k-means clustering
     """
     data = np.array(generated_clusters.data)
     true_centers = np.array(generated_clusters.true_centers)
