@@ -155,7 +155,8 @@ def plot_results(generated_clusters: GeneratedData, kmeans_results: KMeansModel)
                  fontsize=16, fontweight='bold')
 
     plt.tight_layout()
-    plt.show()
+
+    return fig
 
 
 if __name__ == "__main__":
